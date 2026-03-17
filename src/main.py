@@ -1,5 +1,5 @@
 from fastmcp import FastMCP
-from libs.lib_sanitizer.lib_sanitizer import (
+from libs.lib_sanitizer import (
     patch_ql,
     read_function_implementation,
     run_taint_analysis,
