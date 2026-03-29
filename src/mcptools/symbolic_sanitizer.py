@@ -16,9 +16,9 @@ from libs.symbolic_sanitizer import (
     parse_sarif_result,
     load_sarif_from_file,
     extract_taint_paths,
-    generate_harness,
-    compile_harness,
-    verify_sanitization,
+    generate_harness as _generate_harness,
+    compile_harness as _compile_harness,
+    verify_sanitization as _verify_sanitization,
 )
 from libs.symbolic_sanitizer.symbolic_sanitizer import SymbolicExecutor
 
@@ -124,7 +124,7 @@ def parse_sarif_detailed(sarif_path: str) -> dict:
 @mcp.tool()
 def generate_harness(function_name: str, source_file: str) -> dict:
     """Generate C++ harness for symbolic execution."""
-    result = generate_harness(function_name, source_file)
+    result = _generate_harness(function_name, source_file)
     return {
         "success": result.success,
         "harness_code": result.harness_code,
@@ -134,7 +134,7 @@ def generate_harness(function_name: str, source_file: str) -> dict:
 @mcp.tool()
 def compile_harness(harness_code: str, source_file: str) -> dict:
     """Compile harness with original source file."""
-    result = compile_harness(harness_code, source_file)
+    result = _compile_harness(harness_code, source_file)
     return {
         "success": result.success,
         "binary_path": result.binary_path,
@@ -145,7 +145,7 @@ def compile_harness(harness_code: str, source_file: str) -> dict:
 @mcp.tool()
 def verify_sanitization(binary_path: str, timeout: int = 60) -> dict:
     """Run symbolic execution to verify sanitization."""
-    result = verify_sanitization(binary_path, timeout)
+    result = _verify_sanitization(binary_path, timeout)
     return result.to_dict()
 
 @mcp.tool()

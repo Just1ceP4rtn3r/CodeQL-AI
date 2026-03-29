@@ -28,18 +28,17 @@ def generate_harness(function_name: str, source_file: str) -> HarnessResult:
     """
     Generate a C++ harness for class constructor/destructor analysis.
     """
-    # Parse function_name: Namespace::ClassName::~ClassName or Namespace::ClassName::ClassName
+    # Parse function_name: Namespace::ClassName::~ClassName or Namespace::ClassName
     parts = function_name.split('::')
 
-    if len(parts) >= 3:
-        # Namespace::ClassName::MethodName format
+    if len(parts) >= 3 and parts[-1].startswith('~'):
+        # Namespace::ClassName::~ClassName format (destructor)
         namespace = '::'.join(parts[:-2])
         class_name = parts[-2]
         full_class = f"{namespace}::{class_name}"
-    elif len(parts) == 2:
-        # ClassName::MethodName format (no namespace)
-        class_name = parts[0]
-        full_class = class_name
+    elif len(parts) >= 2:
+        # Namespace::ClassName format
+        full_class = function_name
     else:
         # Just function name
         full_class = function_name

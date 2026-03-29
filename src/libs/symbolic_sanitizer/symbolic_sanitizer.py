@@ -166,7 +166,7 @@ class SymbolicExecutor:
         Used for input_constraints to ensure we're testing dangerous inputs.
         """
         import claripy
-        char_vals = [ord(c) for c in chars]
+        char_vals = [ord(c[0]) if len(c) > 0 else ord(' ') for c in chars]
         # At least one byte equals at least one of the dangerous characters
         byte_matches = []
         for byte in sym_bytes:
@@ -180,7 +180,7 @@ class SymbolicExecutor:
         Used for output_constraints to verify sanitization removed dangerous chars.
         """
         import claripy
-        char_vals = [ord(c) for c in chars]
+        char_vals = [ord(c[0]) if len(c) > 0 else ord(' ') for c in chars]
         # All bytes must NOT equal any of the dangerous characters
         byte_constraints = []
         for byte in sym_bytes:
@@ -281,7 +281,7 @@ class SymbolicExecutor:
     ) -> bool:
         """Check if symbolic bytes can contain any of the dangerous chars"""
         import claripy
-        char_vals = [ord(c) for c in chars]
+        char_vals = [ord(c[0]) if len(c) > 0 else ord(' ') for c in chars]
         
         for byte in sym_bytes:
             for val in char_vals:
