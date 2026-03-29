@@ -6,10 +6,9 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
-from .sarif_parser import parse_sarif_result, extract_function_location, SarifResult
-from .constraint_generator import generate_taint_constraints, TaintConstraint
-from .harness_generator import generate_harness, compile_harness, generate_and_compile
-from .symbolic_sanitizer import analyze_function_sanitization, SymbolicExecutionResult
+from .sarif_parser import parse_sarif_result, FunctionLocation
+from .symbolic_sanitizer import SymbolicExecutor, SymbolicExecutionResult
+from .harness_generator import generate_harness, compile_harness, HarnessResult
 
 
 @dataclass
@@ -80,8 +79,9 @@ class SanitizationVerifier:
         self,
         function_name: str,
         file_path: str,
-        rule_id: str,
-        message: str,
+        constraints: Dict[str, List[Dict]],
+        rule_id: str = "",
+        message: str = "",
         line_number: int = 0
     ) -> VerificationResult:
         """
@@ -90,22 +90,16 @@ class SanitizationVerifier:
         Args:
             function_name: Name of function to verify
             file_path: Path to source file
-            rule_id: SARIF rule ID for constraint generation
-            message: SARIF message for context
+            constraints: Dict with input_constraints and output_constraints
+            rule_id: SARIF rule ID for reference
+            message: SARIF message for reference
             line_number: Line number of function
             
         Returns:
             VerificationResult with verdict
         """
-        # Generate taint constraints based on sink type
-        taint_constraint = generate_taint_constraints(
-            rule_id=rule_id,
-            message=message,
-            sink_name=function_name
-        )
-        
-        # Generate and compile harness
-        harness_result = generate_and_compile(
+        # Step 1: Generate harness
+        harness_result = generate_harness(
             function_name=function_name,
             source_file=file_path
         )
@@ -119,18 +113,34 @@ class SanitizationVerifier:
                 file_path=file_path,
                 line_number=line_number,
                 sanitized=False,
-                sink_type=taint_constraint.sink_type.value,
-                constraint_description=taint_constraint.description,
+                sink_type="unknown",
+                constraint_description="Harness generation failed",
                 errors=[f"Harness failed: {harness_result.error}"]
             )
         
-        # Run symbolic execution
-        symbolic_result = analyze_function_sanitization(
-            binary_path=harness_result.binary_path,
-            function_name=function_name,
-            taint_constraint=taint_constraint,
-            timeout=self.timeout
+        # Step 2: Compile harness
+        compile_result = compile_harness(
+            harness_code=harness_result.harness_code,
+            source_file=file_path
         )
+        
+        if not compile_result.success:
+            return VerificationResult(
+                success=False,
+                rule_id=rule_id,
+                message=message,
+                function_name=function_name,
+                file_path=file_path,
+                line_number=line_number,
+                sanitized=False,
+                sink_type="unknown",
+                constraint_description="Harness compilation failed",
+                errors=[f"Compilation failed: {compile_result.error}"]
+            )
+        
+        # Step 3: Run symbolic execution with constraints
+        executor = SymbolicExecutor(compile_result.binary_path)
+        symbolic_result = executor.execute_with_constraints(constraints, self.timeout)
         
         return VerificationResult(
             success=symbolic_result.success,
@@ -140,47 +150,41 @@ class SanitizationVerifier:
             file_path=file_path,
             line_number=line_number,
             sanitized=symbolic_result.sanitized,
-            sink_type=taint_constraint.sink_type.value,
-            constraint_description=taint_constraint.description,
+            sink_type=constraints.get("sink_type", "unknown"),
+            constraint_description=constraints.get("description", ""),
             symbolic_result=symbolic_result,
             errors=symbolic_result.errors
         )
     
     def _verify_single_result(
         self,
-        sarif_result: SarifResult,
-        source_root: Optional[str]
+        func_location: FunctionLocation,
+        source_root: Optional[str],
+        constraints: Optional[Dict[str, List[Dict]]] = None
     ) -> VerificationResult:
         """Verify a single SARIF result"""
         
-        # Get sink location
-        sink = sarif_result.sink_location or sarif_result.locations[0] if sarif_result.locations else None
-        
-        if not sink:
-            return VerificationResult(
-                success=False,
-                rule_id=sarif_result.rule_id,
-                message=sarif_result.message,
-                function_name=None,
-                file_path=None,
-                line_number=0,
-                sanitized=False,
-                sink_type="unknown",
-                constraint_description="No sink location found",
-                errors=["No sink location in SARIF result"]
-            )
-        
         # Resolve file path
-        file_path = sink.file_path
+        file_path = func_location.file_path
         if source_root and not Path(file_path).is_absolute():
             file_path = str(Path(source_root) / file_path)
         
+        # Use provided constraints or default empty constraints
+        if constraints is None:
+            constraints = {
+                "input_constraints": [],
+                "output_constraints": [],
+                "sink_type": "unknown",
+                "description": "No constraints provided"
+            }
+        
         return self.verify_function(
-            function_name=sink.function_name or "unknown",
+            function_name=func_location.function_name or "unknown",
             file_path=file_path,
-            rule_id=sarif_result.rule_id,
-            message=sarif_result.message,
-            line_number=sink.line_number
+            constraints=constraints,
+            rule_id=func_location.rule_id or "",
+            message=func_location.message or "",
+            line_number=func_location.line_number
         )
 
 

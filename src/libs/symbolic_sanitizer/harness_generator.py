@@ -4,6 +4,7 @@ Harness Generator - Create C/C++ harness for symbolic execution
 
 import tempfile
 import subprocess
+import shutil
 import os
 import logging
 from pathlib import Path
@@ -105,10 +106,11 @@ def compile_harness(harness_code: str, source_file: str, compiler: str = "g++") 
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         if result.returncode != 0:
+            shutil.rmtree(temp_dir, ignore_errors=True)
             return HarnessResult(
                 success=False,
                 harness_code=harness_code,
-                harness_path=harness_path,
+                harness_path=None,
                 error=f"Compilation failed: {result.stderr}"
             )
 
@@ -120,6 +122,7 @@ def compile_harness(harness_code: str, source_file: str, compiler: str = "g++") 
         )
 
     except Exception as e:
+        shutil.rmtree(temp_dir, ignore_errors=True)
         return HarnessResult(
             success=False,
             harness_code=harness_code,

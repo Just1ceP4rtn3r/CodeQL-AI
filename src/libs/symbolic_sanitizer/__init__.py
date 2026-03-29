@@ -2,21 +2,32 @@
 Symbolic Sanitizer - Verify function sanitization using angr symbolic execution
 """
 
-from .sarif_parser import parse_sarif_result, load_sarif_from_file, FunctionLocation
-from .constraint_generator import TaintConstraint, SinkType, parse_constraint_from_llm_response
+from .sarif_parser import (
+    parse_sarif_result,
+    load_sarif_from_file,
+    extract_taint_paths,
+    FunctionLocation,
+    TaintPath
+)
 from .harness_generator import generate_harness, compile_harness, HarnessResult
-from .symbolic_sanitizer import verify_sanitization, SymbolicExecutionResult
+from .symbolic_sanitizer import (
+    verify_sanitization,
+    SymbolicExecutionResult,
+    SymbolicExecutor,
+    PathAnalysisResult,
+)
 
 __all__ = [
     'parse_sarif_result',
     'load_sarif_from_file',
+    'extract_taint_paths',
     'FunctionLocation',
-    'TaintConstraint',
-    'SinkType',
-    'parse_constraint_from_llm_response',
+    'TaintPath',
     'generate_harness',
     'compile_harness',
     'HarnessResult',
     'verify_sanitization',
     'SymbolicExecutionResult',
+    'SymbolicExecutor',
+    'PathAnalysisResult',
 ]
